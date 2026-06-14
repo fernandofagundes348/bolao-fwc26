@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800&family=Nunito:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-green-primary: #64C832;
+  --color-green-dark: #146E37;
+  --color-green-light: #E8F8DC;
+  --color-green-muted: #A8E07A;
+  --color-green-hover: #52A828;
+
+  --color-bg-page: #F4F7F2;
+  --color-bg-card: #FFFFFF;
+
+  --color-text-primary: #1A1F16;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #9CA3AF;
+
+  --color-border-default: #E5EDE0;
+  --color-border-hover: #B8D9A0;
+
+  --font-family-title: "Exo 2", sans-serif;
+  --font-family-body: "Nunito", sans-serif;
+
+  --radius-sm: 8px;
+  --radius-DEFAULT: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  --shadow-card: 0 1px 3px rgba(100, 200, 50, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(100, 200, 50, 0.15), 0 2px 4px rgba(0, 0, 0, 0.06);
+
+  --animate-fade-in: fadeIn 0.3s ease-in-out;
+  --animate-slide-in: slideIn 0.3s ease-out;
+  --animate-slide-up: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  border-color: #E5EDE0;
+}
+
+body {
+  font-family: "Nunito", sans-serif;
+  background-color: #F4F7F2;
+  color: #1A1F16;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Exo 2", sans-serif;
+  font-weight: 700;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #E5EDE0 transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar       { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #E5EDE0;
+  border-radius: 20px;
+}

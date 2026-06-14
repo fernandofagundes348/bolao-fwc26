@@ -1,0 +1,86 @@
+// Prisma Schema - Bolão Corporativo
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Participant {
+  id          String       @id @default(cuid())
+  name        String
+  email       String       @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  predictions Prediction[]
+
+  @@map("participants")
+}
+
+model Match {
+  id             String       @id @default(cuid())
+  homeTeam       String
+  awayTeam       String
+  matchDate      DateTime
+  round          String?
+  officialResult String?
+  status         MatchStatus  @default(SCHEDULED)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  predictions    Prediction[]
+
+  @@map("matches")
+}
+
+model Prediction {
+  id            String      @id @default(cuid())
+  participantId String
+  matchId       String
+  prediction    String
+  score         Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  match         Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, matchId])
+  @@map("predictions")
+}
+
+model ImportHistory {
+  id           String       @id @default(cuid())
+  fileName     String
+  importedAt   DateTime     @default(now())
+  totalRecords Int
+  status       ImportStatus @default(SUCCESS)
+  errorMessage String?
+
+  @@map("import_history")
+}
+
+model RuleConfiguration {
+  id               String   @id @default(cuid())
+  exactScorePoints Int      @default(3)
+  winnerPoints     Int      @default(1)
+  drawPoints       Int      @default(1)
+  wrongPoints      Int      @default(0)
+  updatedAt        DateTime @updatedAt
+  isActive         Boolean  @default(true)
+
+  @@map("rule_configurations")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+}
+
+enum ImportStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
