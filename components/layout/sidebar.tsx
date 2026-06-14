@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
-  FileText,
   Gamepad2,
   LayoutDashboard,
   Settings,
@@ -29,61 +28,99 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E5EDE0] flex flex-col z-30">
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-[#E5EDE0]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#64C832] flex items-center justify-center shadow-sm">
-            <Trophy className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-[#1A1F16]" style={{ fontFamily: "'Exo 2', sans-serif" }}>
-              Bolão FWC26
-            </p>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-white border-r border-[#E5EDE0] flex-col z-30">
+        {/* Logo */}
+        <div className="px-6 py-6 border-b border-[#E5EDE0]">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#64C832] shadow-sm">
+              <Trophy className="w-5 h-5 text-white" />
+            </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest px-3 mb-3">
-          Menu principal
-        </p>
-        <div className="space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-                  isActive
-                    ? "bg-[#64C832] text-white shadow-sm"
-                    : "text-[#4A5568] hover:bg-[#F4F7F2] hover:text-[#1A1F16]"
-                )}
+            <div>
+              <p
+                className="text-sm font-bold text-[#1A1F16]"
+                style={{ fontFamily: "'Exo 2', sans-serif" }}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {label}
-              </Link>
-            );
-          })}
+                Bolão FWC26
+              </p>
+            </div>
+          </div>
         </div>
-      </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-[#E5EDE0]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#E8F8DC] flex items-center justify-center">
-            <BarChart3 className="h-4 w-4 text-[#64C832]" />
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <p className="px-3 mb-3 text-[10px] font-bold tracking-widest uppercase text-[#9CA3AF]">
+            Menu principal
+          </p>
+
+          <div className="space-y-1">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const isActive =
+                pathname === href || pathname.startsWith(`${href}/`);
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
+                    isActive
+                      ? "bg-[#64C832] text-white shadow-sm"
+                      : "text-[#4A5568] hover:bg-[#F4F7F2] hover:text-[#1A1F16]"
+                  )}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
           </div>
-          <div>
-            <p className="text-xs font-bold text-[#1A1F16]">Desenvolvido por</p>
-            <p className="text-[11px] text-[#9CA3AF]">Fernando Fagundes</p>
+        </nav>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-[#E5EDE0]">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#E8F8DC]">
+              <BarChart3 className="w-4 h-4 text-[#64C832]" />
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-[#1A1F16]">
+                Desenvolvido por
+              </p>
+              <p className="text-[11px] text-[#9CA3AF]">
+                Fernando Fagundes
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex bg-white border-t border-[#E5EDE0] md:hidden">
+        {navItems.map(({ href, icon: Icon }) => {
+          const isActive =
+            pathname === href || pathname.startsWith(`${href}/`);
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex flex-1 items-center justify-center py-3 transition-colors",
+                isActive
+                  ? "text-[#64C832]"
+                  : "text-[#9CA3AF]"
+              )}
+            >
+              <Icon className="w-5 h-5" />
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
@@ -97,17 +134,27 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between mb-8">
+    <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between md:mb-8">
       <div>
         <h1
-          className="text-2xl font-bold text-[#1A1F16]"
+          className="text-xl font-bold text-[#1A1F16] md:text-2xl"
           style={{ fontFamily: "'Exo 2', sans-serif" }}
         >
           {title}
         </h1>
-        {subtitle && <p className="text-sm text-[#9CA3AF] mt-1">{subtitle}</p>}
+
+        {subtitle && (
+          <p className="mt-1 text-sm text-[#9CA3AF]">
+            {subtitle}
+          </p>
+        )}
       </div>
-      {actions && <div className="flex items-center gap-3">{actions}</div>}
+
+      {actions && (
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

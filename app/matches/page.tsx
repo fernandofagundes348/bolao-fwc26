@@ -11,7 +11,10 @@ export default async function MatchesPage() {
         title="Jogos"
         subtitle="Gerencie os jogos do bolão e registre os resultados oficiais"
       />
-      <MatchesClient matches={matches} />
+
+      <div className="w-full">
+        <MatchesClient matches={matches} />
+      </div>
     </div>
   );
 }

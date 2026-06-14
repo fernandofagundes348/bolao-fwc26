@@ -11,7 +11,10 @@ export default async function ImportPage() {
         title="Importar CSV"
         subtitle="Importe os palpites dos participantes a partir de arquivos CSV"
       />
-      <ImportCSVClient history={history} />
+
+      <div className="w-full">
+        <ImportCSVClient history={history} />
+      </div>
     </div>
   );
 }

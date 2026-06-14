@@ -11,7 +11,10 @@ export default async function RulesPage() {
         title="Regras de Negócio"
         subtitle="Configure a pontuação do bolão. Alterações recalculam toda a classificação."
       />
-      <RulesClient rules={rules} />
+
+      <div className="w-full">
+        <RulesClient rules={rules} />
+      </div>
     </div>
   );
 }

@@ -11,7 +11,10 @@ export default async function ParticipantsPage() {
         title="Participantes"
         subtitle={`${participants.length} participantes cadastrados`}
       />
-      <ParticipantsClient participants={participants} />
+
+      <div className="w-full">
+        <ParticipantsClient participants={participants} />
+      </div>
     </div>
   );
 }

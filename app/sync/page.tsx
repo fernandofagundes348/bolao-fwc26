@@ -8,7 +8,10 @@ export default function SyncPage() {
         title="Sincronização de Resultados"
         subtitle="Integração com APIs esportivas para atualização automática de resultados"
       />
-      <SyncClient />
+
+      <div className="w-full">
+        <SyncClient />
+      </div>
     </div>
   );
 }

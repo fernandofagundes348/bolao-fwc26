@@ -6,12 +6,13 @@ export default async function RankingPage() {
   const ranking = await getRankingData();
 
   return (
-    <div className="animate-fade-in">
+    <section className="animate-fade-in space-y-6">
       <PageHeader
         title="Ranking"
         subtitle={`${ranking.length} participantes classificados`}
       />
+
       <RankingTable data={ranking} />
-    </div>
+    </section>
   );
 }
