@@ -8,30 +8,45 @@ import { revalidatePath } from "next/cache";
 
 interface RulesConfig {
   id: string;
+  phase: string;
   exactScorePoints: number;
   winnerPoints: number;
   drawPoints: number;
   wrongPoints: number;
-  isActive: boolean;
   updatedAt: Date;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function getActiveRules(): Promise<RulesConfig> {
-  let rules = await prisma.ruleConfiguration.findFirst({ where: { isActive: true } });
-  if (!rules) {
-    rules = await prisma.ruleConfiguration.create({
+// Pega todas as regras e garante que a regra "Padrão" exista
+export async function getAllRules(): Promise<RulesConfig[]> {
+  let rules = await prisma.ruleConfiguration.findMany({
+    orderBy: { phase: "asc" }
+  });
+
+  if (rules.length === 0) {
+    const defaultRule = await prisma.ruleConfiguration.create({
       data: {
+        phase: "Padrão",
         exactScorePoints: 3,
         winnerPoints: 1,
         drawPoints: 1,
         wrongPoints: 0,
-        isActive: true,
       },
     });
+    rules.push(defaultRule);
   }
   return rules;
+}
+
+// Encontra a regra correta para uma fase específica
+export async function getRuleForMatch(matchRound: string | null, rules: RulesConfig[]) {
+  if (!matchRound) return rules.find(r => r.phase === "Padrão") || rules[0];
+
+  const specificRule = rules.find(r => r.phase.toLowerCase() === matchRound.toLowerCase());
+  if (specificRule) return specificRule;
+
+  return rules.find(r => r.phase === "Padrão") || rules[0];
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -174,11 +189,12 @@ export async function setMatchResult(id: string, officialResult: string) {
     include: { predictions: true },
   });
 
-  const rules = await getActiveRules();
+  const rules = await getAllRules();
+  const matchRule = await getRuleForMatch(match.round, rules);
 
   await Promise.all(
     match.predictions.map((pred) => {
-      const score = calculatePredictionScore(pred.prediction, officialResult, rules);
+      const score = calculatePredictionScore(pred.prediction, officialResult, matchRule);
       return prisma.prediction.update({ where: { id: pred.id }, data: { score } });
     })
   );
@@ -203,10 +219,12 @@ export async function updatePrediction(id: string, prediction: string) {
   });
   if (!pred) throw new Error("Palpite não encontrado");
 
-  const rules = await getActiveRules();
+  const rules = await getAllRules();
+  const matchRule = await getRuleForMatch(pred.match.round, rules);
+
   const score =
     pred.match.officialResult
-      ? calculatePredictionScore(prediction, pred.match.officialResult, rules)
+      ? calculatePredictionScore(prediction, pred.match.officialResult, matchRule)
       : 0;
 
   const updated = await prisma.prediction.update({
@@ -234,14 +252,16 @@ interface CSVRowInput {
   predictions: CSVPredictionInput[];
 }
 
-export async function importCSVData(fileName: string, rows: CSVRowInput[]) {
-  const rules = await getActiveRules();
+export async function importCSVData(
+  fileName: string, 
+  rows: CSVRowInput[], 
+  importPhase?: string // Recebe a fase digitada na tela
+) {
+  const allRules = await getAllRules();
   let totalRecords = 0;
   let matchesCreated = 0;
 
   try {
-    // Carrega todos os jogos existentes e monta um cache normalizado
-    // para evitar duplicar jogos já cadastrados (ignorando acentos/maiúsculas).
     const existingMatches = await prisma.match.findMany();
     const matchCache = new Map<string, (typeof existingMatches)[number]>();
     for (const m of existingMatches) {
@@ -267,24 +287,36 @@ export async function importCSVData(fileName: string, rows: CSVRowInput[]) {
         const cacheKey = `${normalizeTeamName(pred.homeTeam)}|${normalizeTeamName(pred.awayTeam)}`;
         let match = matchCache.get(cacheKey);
 
-        // Jogo ainda não existe — cria automaticamente.
-        // Data é um placeholder; o administrador pode ajustar em /matches.
+        const finalRound = (importPhase && importPhase.trim() !== "") 
+          ? importPhase.trim() 
+          : pred.round;
+
         if (!match) {
           match = await prisma.match.create({
             data: {
               homeTeam: pred.homeTeam,
               awayTeam: pred.awayTeam,
-              round: pred.round,
+              round: finalRound,
               matchDate: new Date(),
               status: "SCHEDULED",
             },
           });
           matchCache.set(cacheKey, match);
           matchesCreated++;
+        } else if (finalRound && match.round !== finalRound) {
+          // CORREÇÃO: Se o jogo já existe no banco, mas a fase enviada agora for diferente,
+          // nós forçamos a atualização da fase do jogo no banco para a fase nova!
+          match = await prisma.match.update({
+            where: { id: match.id },
+            data: { round: finalRound }
+          });
+          matchCache.set(cacheKey, match);
         }
 
+        const matchRule = await getRuleForMatch(match.round, allRules);
+
         const score = match.officialResult
-          ? calculatePredictionScore(pred.prediction, match.officialResult, rules)
+          ? calculatePredictionScore(pred.prediction, match.officialResult, matchRule)
           : 0;
 
         await prisma.prediction.upsert({
@@ -308,10 +340,12 @@ export async function importCSVData(fileName: string, rows: CSVRowInput[]) {
       data: { fileName, totalRecords, status: "SUCCESS" },
     });
 
+    // Atualiza o cache de todas as telas (importante para as abas aparecerem na hora)
     revalidatePath("/ranking");
     revalidatePath("/dashboard");
     revalidatePath("/import");
     revalidatePath("/matches");
+    revalidatePath("/rules"); 
 
     return { success: true, totalRecords, matchesCreated };
   } catch (error) {
@@ -339,45 +373,81 @@ export async function deleteImportHistory(id: string) {
 // ─── Rules ────────────────────────────────────────────────────────────────────
 
 export async function getRules() {
-  return getActiveRules();
-}
+  const rules = await getAllRules();
 
-export async function updateRules(data: {
-  exactScorePoints: number;
-  winnerPoints: number;
-  drawPoints: number;
-  wrongPoints: number;
-}) {
-  const existing = await prisma.ruleConfiguration.findFirst({ where: { isActive: true } });
+  // Busca todas as fases (rounds) cadastradas nos jogos
+  const distinctRounds = await prisma.match.findMany({
+    where: { round: { not: null } },
+    distinct: ["round"],
+    select: { round: true },
+  });
 
-  let rules: RulesConfig;
-  if (existing) {
-    rules = await prisma.ruleConfiguration.update({ where: { id: existing.id }, data });
-  } else {
-    rules = await prisma.ruleConfiguration.create({ data: { ...data, isActive: true } });
+  const defaultRule = rules.find((r) => r.phase === "Padrão") || rules[0];
+
+  // Garante que existe uma regra no banco para cada fase que já existe nos jogos
+  for (const m of distinctRounds) {
+    if (m.round && !rules.some((r) => r.phase.toLowerCase() === m.round!.toLowerCase())) {
+      const newRule = await prisma.ruleConfiguration.create({
+        data: {
+          phase: m.round,
+          exactScorePoints: defaultRule.exactScorePoints,
+          winnerPoints: defaultRule.winnerPoints,
+          drawPoints: defaultRule.drawPoints,
+          wrongPoints: defaultRule.wrongPoints,
+        },
+      });
+      rules.push(newRule);
+    }
   }
 
+  return rules;
+}
+
+export async function updateRules(
+  id: string, // <-- Note que agora recebe o ID da regra específica
+  data: {
+    exactScorePoints: number;
+    winnerPoints: number;
+    drawPoints: number;
+    wrongPoints: number;
+  }
+) {
+  // Atualiza apenas a regra daquela aba (fase) específica
+  const updatedRule = await prisma.ruleConfiguration.update({ 
+    where: { id }, 
+    data 
+  });
+
+  const allRules = await getAllRules();
+
+  // Recalcula apenas os jogos utilizando a regra de suas respectivas fases
   const finishedMatches = await prisma.match.findMany({
     where: { officialResult: { not: null } },
     include: { predictions: true },
   });
 
   await Promise.all(
-    finishedMatches.flatMap((match) =>
-      match.predictions.map((pred) => {
+    finishedMatches.flatMap((match) => {
+      // Identifica a qual regra este jogo pertence
+      const matchRule = 
+        allRules.find((r) => r.phase.toLowerCase() === (match.round?.toLowerCase() || "")) 
+        || allRules.find((r) => r.phase === "Padrão") 
+        || allRules[0];
+
+      return match.predictions.map((pred) => {
         const score = calculatePredictionScore(
           pred.prediction,
           match.officialResult!,
-          rules
+          matchRule
         );
         return prisma.prediction.update({ where: { id: pred.id }, data: { score } });
-      })
-    )
+      });
+    })
   );
 
   revalidatePath("/rules");
   revalidatePath("/ranking");
   revalidatePath("/dashboard");
 
-  return rules;
+  return updatedRule;
 }

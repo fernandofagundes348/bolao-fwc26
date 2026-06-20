@@ -63,6 +63,7 @@ model ImportHistory {
 
 model RuleConfiguration {
   id               String   @id @default(cuid())
+  phase            String   @unique
   exactScorePoints Int      @default(3)
   winnerPoints     Int      @default(1)
   drawPoints       Int      @default(1)

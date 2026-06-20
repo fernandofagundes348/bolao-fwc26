@@ -1,5 +1,6 @@
 "use client";
 
+// Removido o 'Input' daqui para evitar o erro de 'not defined'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, toast } from "@/components/ui/index";
 import { deleteImportHistory, importCSVData } from "@/lib/actions";
 import { extractScore, formatDateTime, parseGameHeader } from "@/lib/utils";
@@ -52,11 +53,15 @@ export function ImportCSVClient({ history }: { history: ImportHistory[] }) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [importHistory, setImportHistory] = useState(history);
+  const [importPhase, setImportPhase] = useState<string>("");
 
   const parseCSV = (file: File) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      encoding: "UTF-8",
+      // Essa linha remove os "Enters" (quebras de linha) invisíveis dos nomes das colunas
+      transformHeader: (header) => header.replace(/[\r\n]+/g, " ").trim(),
       complete: (results) => {
         const headers = results.meta.fields ?? [];
         const errors: string[] = [];
@@ -148,7 +153,8 @@ export function ImportCSVClient({ history }: { history: ImportHistory[] }) {
           name: r.name,
           email: r.email,
           predictions: r.predictions,
-        }))
+        })),
+        importPhase // Passando o parâmetro da fase para a action
       );
 
       if (result.matchesCreated > 0) {
@@ -160,6 +166,7 @@ export function ImportCSVClient({ history }: { history: ImportHistory[] }) {
       }
 
       setPreview(null);
+      setImportPhase(""); // Limpa o input após o sucesso
       setImportHistory((prev) => [
         {
           id: Math.random().toString(),
@@ -248,7 +255,7 @@ export function ImportCSVClient({ history }: { history: ImportHistory[] }) {
               </div>
               <button
                 type="button"
-                onClick={() => setPreview(null)}
+                onClick={() => { setPreview(null); setImportPhase(""); }} // Limpa tudo se fechar
                 className="p-2 rounded-lg hover:bg-red-50 text-[#9CA3AF] hover:text-red-500 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -344,9 +351,26 @@ export function ImportCSVClient({ history }: { history: ImportHistory[] }) {
               </div>
             </div>
 
+            {/* NOVO: Campo de Definição da Fase com <input> normal HTML */}
+            <div className="pt-4 border-t border-[#E5EDE0]">
+              <label className="block text-sm font-bold text-[#1A1F16] mb-2">
+                Fase ou Rodada desta Planilha (Opcional)
+              </label>
+              <p className="text-xs text-[#9CA3AF] mb-3">
+                Se preenchido, os jogos desta planilha ficarão atrelados a esta fase (ex: "Rodada 1"). Isso criará uma aba exclusiva na tela de Regras para que você defina a pontuação de forma independente!
+              </p>
+              <input
+                type="text"
+                placeholder="Ex: Rodada 1, Oitavas de Final..."
+                value={importPhase}
+                onChange={(e) => setImportPhase(e.target.value)}
+                className="w-full max-w-sm px-4 py-2.5 bg-white border border-[#E5EDE0] rounded-xl text-sm text-[#1A1F16] focus:outline-none focus:ring-2 focus:ring-[#64C832]/30 focus:border-[#64C832] transition-all"
+              />
+            </div>
+
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="secondary" onClick={() => setPreview(null)}>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="secondary" onClick={() => { setPreview(null); setImportPhase(""); }}>
                 Cancelar
               </Button>
               <Button onClick={handleImport} loading={importing} disabled={preview.games.length === 0}>
