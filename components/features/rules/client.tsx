@@ -87,8 +87,8 @@ export function RulesClient({ rules: initialRules }: { rules: RuleConfig[] }) {
         wrongPoints: activeRule.wrongPoints,
       });
 
-      // Atualiza o estado inicial localmente
-      setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      // Atualiza o estado inicial localmente garantindo a tipagem da 'phase'
+      setRules((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
       toast.success(`Regras da fase "${activeRule.phase}" atualizadas e recalculadas!`);
     } catch {
       toast.error("Erro ao salvar regras");
