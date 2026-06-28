@@ -21,7 +21,7 @@ interface RulesConfig {
 // Pega todas as regras e garante que a regra "Padrão" exista
 export async function getAllRules(): Promise<RulesConfig[]> {
   let rules = await prisma.ruleConfiguration.findMany({
-    orderBy: { phase: "asc" }
+    orderBy: { phase: "asc" },
   });
 
   if (rules.length === 0) {
@@ -41,12 +41,12 @@ export async function getAllRules(): Promise<RulesConfig[]> {
 
 // Encontra a regra correta para uma fase específica
 export async function getRuleForMatch(matchRound: string | null, rules: RulesConfig[]) {
-  if (!matchRound) return rules.find(r => r.phase === "Padrão") || rules[0];
+  if (!matchRound) return rules.find((r) => r.phase === "Padrão") || rules[0];
 
-  const specificRule = rules.find(r => r.phase.toLowerCase() === matchRound.toLowerCase());
+  const specificRule = rules.find((r) => r.phase.toLowerCase() === matchRound.toLowerCase());
   if (specificRule) return specificRule;
 
-  return rules.find(r => r.phase === "Padrão") || rules[0];
+  return rules.find((r) => r.phase === "Padrão") || rules[0];
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -253,8 +253,8 @@ interface CSVRowInput {
 }
 
 export async function importCSVData(
-  fileName: string, 
-  rows: CSVRowInput[], 
+  fileName: string,
+  rows: CSVRowInput[],
   importPhase?: string // Recebe a fase digitada na tela
 ) {
   const allRules = await getAllRules();
@@ -287,8 +287,8 @@ export async function importCSVData(
         const cacheKey = `${normalizeTeamName(pred.homeTeam)}|${normalizeTeamName(pred.awayTeam)}`;
         let match = matchCache.get(cacheKey);
 
-        const finalRound = (importPhase && importPhase.trim() !== "") 
-          ? importPhase.trim() 
+        const finalRound = (importPhase && importPhase.trim() !== "")
+          ? importPhase.trim()
           : pred.round;
 
         if (!match) {
@@ -308,7 +308,7 @@ export async function importCSVData(
           // nós forçamos a atualização da fase do jogo no banco para a fase nova!
           match = await prisma.match.update({
             where: { id: match.id },
-            data: { round: finalRound }
+            data: { round: finalRound },
           });
           matchCache.set(cacheKey, match);
         }
@@ -345,7 +345,7 @@ export async function importCSVData(
     revalidatePath("/dashboard");
     revalidatePath("/import");
     revalidatePath("/matches");
-    revalidatePath("/rules"); 
+    revalidatePath("/rules");
 
     return { success: true, totalRecords, matchesCreated };
   } catch (error) {
@@ -413,9 +413,9 @@ export async function updateRules(
   }
 ) {
   // Atualiza apenas a regra daquela aba (fase) específica
-  const updatedRule = await prisma.ruleConfiguration.update({ 
-    where: { id }, 
-    data 
+  const updatedRule = await prisma.ruleConfiguration.update({
+    where: { id },
+    data,
   });
 
   const allRules = await getAllRules();
@@ -429,10 +429,10 @@ export async function updateRules(
   await Promise.all(
     finishedMatches.flatMap((match) => {
       // Identifica a qual regra este jogo pertence
-      const matchRule = 
-        allRules.find((r) => r.phase.toLowerCase() === (match.round?.toLowerCase() || "")) 
-        || allRules.find((r) => r.phase === "Padrão") 
-        || allRules[0];
+      const matchRule =
+        allRules.find((r) => r.phase.toLowerCase() === (match.round?.toLowerCase() || "")) ||
+        allRules.find((r) => r.phase === "Padrão") ||
+        allRules[0];
 
       return match.predictions.map((pred) => {
         const score = calculatePredictionScore(
@@ -450,4 +450,48 @@ export async function updateRules(
   revalidatePath("/dashboard");
 
   return updatedRule;
+}
+
+// ─── Danger Zone (Reset) ──────────────────────────────────────────────────────
+
+export async function resetDatabase() {
+  try {
+    // Executa as deleções em uma transação para garantir que tudo ocorra junto.
+    // A ordem importa: excluímos primeiro as tabelas filhas que dependem das tabelas pais.
+    await prisma.$transaction([
+      prisma.prediction.deleteMany(),
+      prisma.importHistory.deleteMany(),
+      prisma.match.deleteMany(),
+      prisma.participant.deleteMany(),
+      prisma.ruleConfiguration.deleteMany(),
+    ]);
+
+    // Recria a regra Padrão imediatamente após a limpeza
+    await prisma.ruleConfiguration.create({
+      data: {
+        phase: "Padrão",
+        exactScorePoints: 3,
+        winnerPoints: 1,
+        drawPoints: 1,
+        wrongPoints: 0,
+      },
+    });
+
+    // Limpa o cache de todas as rotas principais da aplicação
+    revalidatePath("/");
+    revalidatePath("/rules");
+    revalidatePath("/ranking");
+    revalidatePath("/dashboard");
+    revalidatePath("/matches");
+    revalidatePath("/participants");
+    revalidatePath("/import");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erro ao resetar o banco de dados:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao resetar.",
+    };
+  }
 }
